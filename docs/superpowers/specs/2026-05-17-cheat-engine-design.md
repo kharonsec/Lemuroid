@@ -18,13 +18,13 @@ Integrate libretro's native cheat system into Lemuroid, allowing users to browse
 │  Layer 2: retrograde-app-shared (business logic)│
 │  CheatsManager — state + persistence            │
 │  CheatDatabaseDownloader — fetch .cht files     │
-│  CheatFileParser — parse .cht metadata          │
 │  DirectoriesManager — cheats directory          │
 ├─────────────────────────────────────────────────┤
 │  Layer 1: LibretroDroid (native JNI bridge)     │
 │  GLRetroView cheat APIs                         │
 │  getCheatCount / getCheatDescription            │
-│  getCheatState / setCheatState                  │
+│  getCheatState / setCheatState / flushCheats    │
+│  CheatFileParser — parse .cht files (native)    │
 └─────────────────────────────────────────────────┘
 ```
 
@@ -52,9 +52,36 @@ const val libretrodroid = "com.swordfish:libretrodroid:unspecified"
 
 These map to libretro's `RETRO_ENVIRONMENT_GET_CHEAT_COUNT`, `RETRO_ENVIRONMENT_GET_CHEAT_DESC`, `RETRO_ENVIRONMENT_GET_CHEAT_STATE`, and `RETRO_ENVIRONMENT_SET_CHEAT_STATE`.
 
+### CheatFileParser (native)
+
+Parses `.cht` files in LibretroDroid's native layer. The `.cht` format is a simple INI-like structure:
+
+```
+cheat0_enable=0
+cheat0_desc="Infinite Lives"
+cheat0_code=00000000,00FF
+cheat1_enable=0
+cheat1_desc="Infinite Health"
+cheat1_code=00000001,00FF
+```
+
+The parser:
+1. Scans the configured cheats directory for `.cht` files
+2. Parses each file into an internal cheat list
+3. Populates data for the environment callbacks
+4. Applies memory patches when cheats are enabled
+
 ### Cheat File Loading
 
-LibretroDroid must be configured to load `.cht` files from the cheats directory before the game starts. This is done via the libretro environment callback `RETRO_ENVIRONMENT_SET_CORE_OPTIONS_DISPLAY` — actually via `RETRO_ENVIRONMENT_GET_SYSTEM_DIRECTORY` and the core's own `.cht` loading mechanism. The cheats directory path is passed to the core through the standard libretro system directory or via a dedicated environment variable.
+In the libretro architecture, **the frontend** (not the core) is responsible for loading and parsing `.cht` files. The core queries cheat data via environment callbacks, and the frontend responds.
+
+LibretroDroid must:
+1. Parse `.cht` files from the configured cheats directory when `GLRetroView` is created
+2. Store parsed cheat data internally
+3. Respond to the core's `RETRO_ENVIRONMENT_GET_CHEAT_COUNT`, `GET_CHEAT_DESC`, `GET_CHEAT_STATE`, and `SET_CHEAT_STATE` callbacks
+4. Apply cheat memory patches when the core requests them (via `RETRO_ENVIRONMENT_SET_CHEAT` or frame-by-frame)
+
+The cheats directory is passed to LibretroDroid via `GLRetroViewData.cheatsDirectory` (new field).
 
 ## Layer 2: retrograde-app-shared
 
@@ -75,12 +102,14 @@ class CheatsManager(
     private val sharedPreferences: Lazy<SharedPreferences>,
     private val directoriesManager: DirectoriesManager,
 ) {
-    suspend fun loadCheatsForGame(game: Game, coreID: CoreID): List<CheatInfo>
-    suspend fun setCheatState(game: Game, coreID: CoreID, index: Int, enabled: Boolean)
-    suspend fun getCheatState(game: Game, coreID: CoreID, index: Int): Boolean
-    suspend fun flushCheats()
+    suspend fun ensureCheatDatabaseDownloaded()
+    suspend fun loadPersistedCheatStates(game: Game, coreID: CoreID): Map<Int, Boolean>
+    suspend fun saveCheatState(game: Game, coreID: CoreID, index: Int, enabled: Boolean)
+    fun getCheatsDirectory(): File
 }
 ```
+
+The actual cheat toggling (`setCheatState`, `flushCheats`) is called directly on `GLRetroView`. `CheatsManager` handles persistence and file management only.
 
 **Persistence:** Cheat states are stored in SharedPreferences under a key derived from `game.uri` and `coreID`. Format: a JSON map `{index: boolean}`.
 
@@ -101,23 +130,9 @@ User `.cht` files take precedence over official ones with the same filename.
 
 Add `getCheatsDirectory(): File` returning `File(appContext.filesDir, "cheats")`.
 
-### CheatFileParser
+### GLRetroViewData Extension
 
-Parses `.cht` files to extract cheat metadata. The `.cht` format is a simple INI-like structure:
-
-```
-cheat0_enable=0
-cheat0_desc="Infinite Lives"
-cheat0_code=00000000,00FF
-cheat1_enable=0
-cheat1_desc="Infinite Health"
-cheat1_code=00000001,00FF
-```
-
-The parser is used for:
-- Validating downloaded `.cht` files
-- Providing metadata before the core loads them
-- Supporting user-created cheat files
+Add `cheatsDirectory: String?` field to pass the cheats directory path to LibretroDroid.
 
 ## Layer 3: lemuroid-app (UI)
 
@@ -172,41 +187,46 @@ The entry is only shown when `cheats.isNotEmpty()`.
 
 - Full-screen list of `CheatInfo` items
 - Each item: description text + Switch toggle
-- Toggling a switch calls `CheatsManager.setCheatState()` and `flushCheats()`
+- Toggling a switch calls `retroGameView.setCheatState(index, enabled)` then `retroGameView.flushCheats()`, and persists state via `CheatsManager.saveCheatState()`
 - State is persisted immediately on toggle
 - Back button returns to game menu
 
 ### BaseGameActivity
 
-In `displayOptionsDialog()`, fetch cheat list from `CheatsManager` and pass it via intent extras.
+Cheat data is fetched asynchronously when the game finishes loading (in `initializeViewModelsEffectsFlow()` or a dedicated coroutine). The cheat list is stored in a property on the activity.
+
+In `displayOptionsDialog()`, the already-loaded cheat list is passed via intent extras.
 
 In `onActivityResult()`, handle `RESULT_CHEATS` to update local state.
+
+### TV Game Menu
+
+`TVGameMenuActivity` and `tv_game_settings.xml` receive the same "Cheats" entry. The TV preference screen uses the same key constants as mobile.
 
 ## Data Flow
 
 ```
 Game Launch
     │
-    ├──→ CheatsManager.ensureCheatDatabase() (async, no-op if cached)
+    ├──→ CheatsManager.ensureCheatDatabaseDownloaded() (async, no-op if cached)
     │
-    ├──→ GLRetroView created with cheats directory configured
+    ├──→ GLRetroView created with cheatsDirectory configured
+    │         └──→ LibretroDroid parses .cht files, populates cheat list
     │
-    ├──→ Core loads .cht files automatically
-    │
-    └──→ CheatsManager.loadCheatsForGame()
-            ├──→ getCheatCount()
-            ├──→ getCheatDescription(i) for each
-            ├──→ restore persisted states
-            └──→ setCheatState(i, restored) for each
+    └──→ After game loaded (async):
+            ├──→ retroGameView.getCheatCount()
+            ├──→ retroGameView.getCheatDescription(i) for each → build CheatInfo list
+            ├──→ CheatsManager.loadPersistedCheatStates()
+            └──→ retroGameView.setCheatState(i, restored) for each
 
 User opens Game Menu → taps "Cheats"
     │
     ├──→ CheatsScreen shows list with toggles
     │
     └──→ User toggles cheat
-            ├──→ setCheatState(index, enabled)
-            ├──→ flushCheats()
-            └──→ persist state to SharedPreferences
+            ├──→ retroGameView.setCheatState(index, enabled)
+            ├──→ retroGameView.flushCheats()
+            └──→ CheatsManager.saveCheatState()
 
 User exits game
     │
@@ -214,7 +234,7 @@ User exits game
 
 Next session
     │
-    └──→ CheatsManager.restoreState() → re-enables cheats
+    └──→ CheatsManager.loadPersistedCheatStates() → re-enables cheats
 ```
 
 ## Error Handling
