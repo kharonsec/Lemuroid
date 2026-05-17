@@ -26,6 +26,8 @@ import com.swordfish.lemuroid.app.shared.settings.HapticFeedbackMode
 import com.swordfish.lemuroid.common.longAnimationDuration
 import com.swordfish.lemuroid.lib.controller.ControllerConfig
 import com.swordfish.lemuroid.lib.core.CoreVariablesManager
+import com.swordfish.lemuroid.lib.cheats.CheatsManager
+import com.swordfish.lemuroid.lib.cheats.CheatInfo
 import com.swordfish.lemuroid.lib.game.GameLoader
 import com.swordfish.lemuroid.lib.library.GameSystem
 import com.swordfish.lemuroid.lib.library.SystemCoreConfig
@@ -58,6 +60,7 @@ class BaseGameScreenViewModel(
     statesPreviewManager: StatesPreviewManager,
     coreVariablesManager: CoreVariablesManager,
     rumbleManager: RumbleManager,
+    private val cheatsManager: CheatsManager,
 ) : ViewModel(), DefaultLifecycleObserver {
     class Factory(
         private val appContext: Context,
@@ -73,6 +76,7 @@ class BaseGameScreenViewModel(
         private val statesPreviewManager: StatesPreviewManager,
         private val coreVariablesManager: CoreVariablesManager,
         private val rumbleManager: RumbleManager,
+        private val cheatsManager: CheatsManager,
     ) : ViewModelProvider.Factory {
         override fun <T : ViewModel> create(modelClass: Class<T>): T {
             return BaseGameScreenViewModel(
@@ -89,6 +93,7 @@ class BaseGameScreenViewModel(
                 statesPreviewManager,
                 coreVariablesManager,
                 rumbleManager,
+                cheatsManager,
             ) as T
         }
     }
@@ -141,6 +146,30 @@ class BaseGameScreenViewModel(
             statesPreviewManager,
             sideEffects,
         )
+
+    private lateinit var storedGame: Game
+    private lateinit var storedSystemCoreConfig: SystemCoreConfig
+    private var cheatList: List<CheatInfo> = emptyList()
+
+    suspend fun loadCheatsForGame() {
+        val persistedStates = cheatsManager.loadPersistedCheatStates(storedGame, storedSystemCoreConfig.coreID)
+        cheatList = retroGameView.loadCheats(persistedStates)
+    }
+
+    fun getCheatList(): List<CheatInfo> = cheatList
+
+    fun updateCheatState(cheat: CheatInfo, enabled: Boolean) {
+        val updated = retroGameView.setCheatState(cheat, enabled)
+        cheatList = cheatList.map { if (it.index == updated.index) updated else it }
+        viewModelScope.launch {
+            cheatsManager.saveCheatState(
+                game = storedGame,
+                coreID = storedSystemCoreConfig.coreID,
+                index = updated.index,
+                enabled = updated.enabled,
+            )
+        }
+    }
 
     val loadingState = MutableStateFlow(false)
 
@@ -197,6 +226,8 @@ class BaseGameScreenViewModel(
         gameLoader: GameLoader,
         requestLoadSave: Boolean,
     ) {
+        storedGame = game
+        storedSystemCoreConfig = systemCoreConfig
         Timber.i("Calling load game: $game")
         retroGameView.initialize(applicationContext, game, systemCoreConfig, gameLoader, requestLoadSave)
     }
