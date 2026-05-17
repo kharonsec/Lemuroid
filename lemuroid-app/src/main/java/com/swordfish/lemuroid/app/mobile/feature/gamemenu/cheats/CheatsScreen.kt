@@ -20,6 +20,7 @@ import com.swordfish.lemuroid.lib.cheats.CheatInfo
 @Composable
 fun CheatsScreen(
     gameMenuRequest: GameMenuActivity.GameMenuRequest,
+    onCheatsUpdated: (List<CheatInfo>) -> Unit,
     viewModel: CheatsViewModel = viewModel(
         factory = CheatsViewModel.Factory(gameMenuRequest.cheats),
     ),
@@ -40,6 +41,7 @@ fun CheatsScreen(
                         com.alorma.compose.settings.storage.memory.rememberMemoryBooleanSettingState(cheat.enabled),
                     onCheckedChange = { enabled ->
                         viewModel.updateCheat(cheat, enabled)
+                        onCheatsUpdated(viewModel.getCurrentCheats())
                     },
                 )
             }

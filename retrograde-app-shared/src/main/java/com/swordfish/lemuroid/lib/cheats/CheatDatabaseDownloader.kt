@@ -49,6 +49,7 @@ class CheatDatabaseDownloader(
             throw RuntimeException("Failed to download cheat database: ${response.code}")
         }
 
+        var extractedCount = 0
         response.body?.byteStream()?.use { inputStream ->
             ZipInputStream(inputStream).use { zipStream ->
                 var entry = zipStream.nextEntry
@@ -61,6 +62,7 @@ class CheatDatabaseDownloader(
                             outFile.outputStream().use { output ->
                                 zipStream.copyTo(output)
                             }
+                            extractedCount++
                         }
                     }
                     zipStream.closeEntry()
@@ -69,7 +71,11 @@ class CheatDatabaseDownloader(
             }
         }
 
-        File(officialDir, ".downloaded").createNewFile()
+        if (extractedCount > 0) {
+            File(officialDir, ".downloaded").createNewFile()
+        } else {
+            throw RuntimeException("No .cht files extracted from download")
+        }
     }
 
     companion object {

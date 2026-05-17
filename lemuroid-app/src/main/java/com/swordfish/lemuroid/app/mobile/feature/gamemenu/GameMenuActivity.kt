@@ -72,6 +72,8 @@ class GameMenuActivity : RetrogradeComponentActivity() {
     @Inject
     lateinit var statesPreviewManager: StatesPreviewManager
 
+    private var updatedCheats: List<CheatInfo>? = null
+
     data class GameMenuRequest(
         val coreOptions: List<LemuroidCoreOption>,
         val advancedCoreOptions: List<LemuroidCoreOption>,
@@ -168,7 +170,11 @@ class GameMenuActivity : RetrogradeComponentActivity() {
                                     )
                                 }
                             } else {
-                                IconButton(onClick = { onResult { } }) {
+                                IconButton(onClick = {
+                                    updatedCheats?.let { cheats ->
+                                        onResult { putExtra(GameMenuContract.RESULT_CHEATS, cheats.toTypedArray()) }
+                                    } ?: onResult { }
+                                }) {
                                     Icon(
                                         Icons.Filled.Close,
                                         stringResource(R.string.close),
@@ -234,7 +240,9 @@ class GameMenuActivity : RetrogradeComponentActivity() {
                         )
                     }
                     composable(GameMenuRoute.CHEATS) {
-                        CheatsScreen(gameMenuRequest)
+                        CheatsScreen(gameMenuRequest) { updated ->
+                            updatedCheats = updated
+                        }
                     }
                 }
             }

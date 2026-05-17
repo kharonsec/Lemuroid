@@ -263,6 +263,9 @@ object GameMenuHelper {
                     key = "pref_game_cheat_${cheat.index}"
                     title = cheat.description
                     isChecked = cheat.enabled
+                    setOnPreferenceChangeListener { _, newValue ->
+                        true
+                    }
                 }
             )
         }
