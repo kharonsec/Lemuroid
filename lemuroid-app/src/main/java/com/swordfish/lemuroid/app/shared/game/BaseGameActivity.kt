@@ -31,6 +31,8 @@ import com.swordfish.lemuroid.common.displayToast
 import com.swordfish.lemuroid.common.dump
 import com.swordfish.lemuroid.common.kotlin.serializable
 import com.swordfish.lemuroid.lib.core.CoreVariablesManager
+import com.swordfish.lemuroid.lib.cheats.CheatInfo
+import com.swordfish.lemuroid.lib.cheats.CheatsManager
 import com.swordfish.lemuroid.lib.game.GameLoader
 import com.swordfish.lemuroid.lib.library.ExposedSetting
 import com.swordfish.lemuroid.lib.library.GameSystem
@@ -80,6 +82,9 @@ abstract class BaseGameActivity : ImmersiveActivity() {
 
     @Inject
     lateinit var rumbleManager: RumbleManager
+
+    @Inject
+    lateinit var cheatsManager: CheatsManager
 
     @Inject
     lateinit var sharedPreferences: Lazy<SharedPreferences>
@@ -191,6 +196,8 @@ abstract class BaseGameActivity : ImmersiveActivity() {
             systemCoreConfig.exposedAdvancedSettings
                 .mapNotNull { transformExposedSetting(it, coreOptions) }
 
+        val cheats = baseGameScreenViewModel.getCheatList()
+
         val intent =
             Intent(this, getDialogClass()).apply {
                 this.putExtra(GameMenuContract.EXTRA_CORE_OPTIONS, options.toTypedArray())
@@ -217,6 +224,7 @@ abstract class BaseGameActivity : ImmersiveActivity() {
                 this.putExtra(GameMenuContract.EXTRA_CURRENT_TILT_CONFIG, currentTiltConfiguration)
                 // TODO PADS... Make sure to avoid passing this if a physical pad is connected.
                 this.putExtra(GameMenuContract.EXTRA_TILT_ALL_CONFIGS, tiltConfigurations.toTypedArray())
+                this.putExtra(GameMenuContract.EXTRA_CHEATS, cheats.toTypedArray())
             }
         startActivityForResult(intent, DIALOG_REQUEST)
         overridePendingTransition(android.R.anim.fade_in, android.R.anim.fade_out)
@@ -412,6 +420,13 @@ abstract class BaseGameActivity : ImmersiveActivity() {
             if (data?.hasExtra(GameMenuContract.RESULT_CHANGE_TILT_CONFIG) == true) {
                 val tiltConfig = data.serializable<TiltConfiguration>(GameMenuContract.RESULT_CHANGE_TILT_CONFIG)
                 baseGameScreenViewModel.changeTiltConfiguration(tiltConfig!!)
+            }
+
+            if (data?.hasExtra(GameMenuContract.RESULT_CHEATS) == true) {
+                val updatedCheats = data.serializable<Array<CheatInfo>>(GameMenuContract.RESULT_CHEATS)
+                updatedCheats?.forEach { updatedCheat ->
+                    baseGameScreenViewModel.updateCheatState(updatedCheat, updatedCheat.enabled)
+                }
             }
         }
     }
