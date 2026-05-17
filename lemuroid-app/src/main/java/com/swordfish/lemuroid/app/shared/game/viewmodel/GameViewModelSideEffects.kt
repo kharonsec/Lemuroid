@@ -1,5 +1,6 @@
 package com.swordfish.lemuroid.app.shared.game.viewmodel
 
+import com.swordfish.lemuroid.lib.cheats.CheatInfo
 import com.swordfish.touchinput.radial.sensors.TiltConfiguration
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -27,6 +28,8 @@ class GameViewModelSideEffects(private val scope: CoroutineScope) {
         data object SaveQuickSave : UiEffect
 
         data object ToggleFastForward : UiEffect
+
+        data class ShowCheats(val cheats: List<CheatInfo>) : UiEffect
     }
 
     private val uiEffects = MutableSharedFlow<UiEffect>()
@@ -93,6 +96,14 @@ class GameViewModelSideEffects(private val scope: CoroutineScope) {
         scope.launch {
             withContext(Dispatchers.Main) {
                 uiEffects.emit(UiEffect.ToggleFastForward)
+            }
+        }
+    }
+
+    fun showCheats(cheats: List<CheatInfo>) {
+        scope.launch {
+            withContext(Dispatchers.Main) {
+                uiEffects.emit(UiEffect.ShowCheats(cheats))
             }
         }
     }
