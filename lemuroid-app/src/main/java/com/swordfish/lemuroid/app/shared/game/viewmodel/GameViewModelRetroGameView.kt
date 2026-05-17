@@ -15,6 +15,7 @@ import com.swordfish.lemuroid.app.shared.settings.HDModeQuality
 import com.swordfish.lemuroid.common.coroutines.MutableStateProperty
 import com.swordfish.lemuroid.common.coroutines.launchOnState
 import com.swordfish.lemuroid.common.view.disableTouchEvents
+import com.swordfish.lemuroid.lib.cheats.CheatInfo
 import com.swordfish.lemuroid.lib.core.CoreVariable
 import com.swordfish.lemuroid.lib.core.CoreVariablesManager
 import com.swordfish.lemuroid.lib.game.GameLoader
@@ -369,5 +370,24 @@ class GameViewModelRetroGameView(
             }
 
         return message
+    }
+
+    suspend fun loadCheats(persistedStates: Map<Int, Boolean>): List<CheatInfo> {
+        val retroView = retroGameViewFlow()
+        val count = retroView.getCheatCount()
+        return (0 until count).map { index ->
+            val description = retroView.getCheatDescription(index) ?: "Cheat ${index + 1}"
+            val enabled = persistedStates[index] ?: false
+            retroView.setCheatState(index, enabled)
+            CheatInfo(index, description, enabled)
+        }
+    }
+
+    fun setCheatState(cheat: CheatInfo, enabled: Boolean): CheatInfo {
+        retroGameView?.apply {
+            setCheatState(cheat.index, enabled)
+            flushCheats()
+        }
+        return cheat.copy(enabled = enabled)
     }
 }
