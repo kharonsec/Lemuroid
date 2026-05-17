@@ -9,6 +9,7 @@ import androidx.preference.ListPreference
 import androidx.preference.Preference
 import androidx.preference.PreferenceScreen
 import androidx.preference.SwitchPreference
+import com.swordfish.lemuroid.lib.cheats.CheatInfo
 import com.swordfish.lemuroid.R
 import com.swordfish.lemuroid.app.shared.GameMenuContract
 import com.swordfish.lemuroid.common.graphics.GraphicsUtils
@@ -243,6 +244,31 @@ object GameMenuHelper {
         return statesPreviewManager.getPreviewForSlot(game, coreID, index, imageSize)
     }
 
+    fun setupCheatsOption(
+        screen: PreferenceScreen,
+        cheats: List<CheatInfo>,
+    ) {
+        val cheatsScreen = screen.findPreference<PreferenceScreen>(SECTION_CHEATS)
+        if (cheatsScreen == null || cheats.isEmpty()) {
+            cheatsScreen?.isVisible = false
+            return
+        }
+
+        cheatsScreen.isVisible = true
+        cheatsScreen.removeAll()
+
+        cheats.forEach { cheat ->
+            cheatsScreen.addPreference(
+                SwitchPreference(screen.context).apply {
+                    key = "pref_game_cheat_${cheat.index}"
+                    title = cheat.description
+                    isChecked = cheat.enabled
+                }
+            )
+        }
+    }
+
+    const val SECTION_CHEATS = "pref_game_section_cheats"
     const val FAST_FORWARD = "pref_game_fast_forward"
     const val MUTE = "pref_game_mute"
     const val SECTION_CORE_OPTIONS = "pref_game_section_core_options"

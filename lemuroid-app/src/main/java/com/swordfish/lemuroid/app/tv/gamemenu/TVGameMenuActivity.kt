@@ -6,6 +6,7 @@ import com.swordfish.lemuroid.app.shared.GameMenuContract
 import com.swordfish.lemuroid.app.shared.coreoptions.LemuroidCoreOption
 import com.swordfish.lemuroid.app.shared.input.InputDeviceManager
 import com.swordfish.lemuroid.app.tv.shared.TVBaseSettingsActivity
+import com.swordfish.lemuroid.lib.cheats.CheatInfo
 import com.swordfish.lemuroid.lib.library.SystemCoreConfig
 import com.swordfish.lemuroid.lib.library.db.entity.Game
 import com.swordfish.lemuroid.lib.saves.StatesManager
@@ -68,6 +69,10 @@ class TVGameMenuActivity : TVBaseSettingsActivity() {
                 intent.extras?.getBoolean(GameMenuContract.EXTRA_FAST_FORWARD_SUPPORTED)
                     ?: throw InvalidParameterException("Missing EXTRA_FAST_FORWARD_SUPPORTED")
 
+            val cheats =
+                intent.extras?.getSerializable(GameMenuContract.EXTRA_CHEATS) as Array<CheatInfo>?
+                    ?: throw InvalidParameterException("Missing EXTRA_CHEATS")
+
             val fragment =
                 TVGameMenuFragmentWrapper(
                     statesManager,
@@ -82,6 +87,7 @@ class TVGameMenuActivity : TVBaseSettingsActivity() {
                     audioEnabled,
                     fastForwardEnabled,
                     fastForwardSupported,
+                    cheats,
                 )
             supportFragmentManager.beginTransaction().replace(android.R.id.content, fragment)
                 .commit()
@@ -106,6 +112,7 @@ class TVGameMenuActivity : TVBaseSettingsActivity() {
         private val audioEnabled: Boolean,
         private val fastForwardEnabled: Boolean,
         private val fastForwardSupported: Boolean,
+        private val cheats: Array<CheatInfo>,
     ) : BaseSettingsFragmentWrapper() {
         override fun createFragment(): Fragment {
             return TVGameMenuFragment(
@@ -121,6 +128,7 @@ class TVGameMenuActivity : TVBaseSettingsActivity() {
                 audioEnabled,
                 fastForwardEnabled,
                 fastForwardSupported,
+                cheats,
             )
         }
     }

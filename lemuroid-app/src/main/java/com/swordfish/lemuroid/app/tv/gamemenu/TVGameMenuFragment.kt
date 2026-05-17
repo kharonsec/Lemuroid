@@ -13,6 +13,7 @@ import com.swordfish.lemuroid.app.shared.gamemenu.GameMenuHelper
 import com.swordfish.lemuroid.app.shared.input.InputDeviceManager
 import com.swordfish.lemuroid.common.coroutines.launchOnState
 import com.swordfish.lemuroid.common.coroutines.safeCollect
+import com.swordfish.lemuroid.lib.cheats.CheatInfo
 import com.swordfish.lemuroid.lib.library.SystemCoreConfig
 import com.swordfish.lemuroid.lib.library.db.entity.Game
 import com.swordfish.lemuroid.lib.preferences.SharedPreferencesHelper
@@ -32,6 +33,7 @@ class TVGameMenuFragment(
     private val audioEnabled: Boolean,
     private val fastForwardEnabled: Boolean,
     private val fastForwardSupported: Boolean,
+    private val cheats: Array<CheatInfo>,
 ) : LeanbackPreferenceFragmentCompat() {
     override fun onCreatePreferences(
         savedInstanceState: Bundle?,
@@ -51,6 +53,7 @@ class TVGameMenuFragment(
         GameMenuHelper.setupAudioOption(preferenceScreen, audioEnabled)
         GameMenuHelper.setupFastForwardOption(preferenceScreen, fastForwardEnabled, fastForwardSupported)
         GameMenuHelper.setupSaveOption(preferenceScreen, systemCoreConfig)
+        GameMenuHelper.setupCheatsOption(preferenceScreen, cheats.toList())
 
         if (numDisks > 1) {
             GameMenuHelper.setupChangeDiskOption(activity, preferenceScreen, currentDisk, numDisks)

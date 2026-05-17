@@ -13,6 +13,11 @@
         android:title="@string/game_menu_load"
         app:icon="@drawable/ic_menu_load"/>
 
+    <PreferenceScreen
+        android:key="pref_game_section_cheats"
+        android:title="@string/game_menu_cheats"
+        app:icon="@drawable/ic_menu_cheats"/>
+
     <Preference
         android:key="pref_game_quit"
         android:title="@string/game_menu_quit"
