@@ -44,6 +44,8 @@ import com.swordfish.lemuroid.ext.feature.core.CoreUpdaterImpl
 import com.swordfish.lemuroid.ext.feature.review.ReviewManager
 import com.swordfish.lemuroid.ext.feature.savesync.SaveSyncManagerImpl
 import com.swordfish.lemuroid.lib.bios.BiosManager
+import com.swordfish.lemuroid.lib.cheats.CheatDatabaseDownloader
+import com.swordfish.lemuroid.lib.cheats.CheatsManager
 import com.swordfish.lemuroid.lib.core.CoreUpdater
 import com.swordfish.lemuroid.lib.core.CoreVariablesManager
 import com.swordfish.lemuroid.lib.core.CoresSelection
@@ -386,5 +388,21 @@ abstract class LemuroidApplicationModule {
             settingsManager: SettingsManager,
             inputDeviceManager: InputDeviceManager,
         ) = RumbleManager(context, settingsManager, inputDeviceManager)
+
+        @Provides
+        @PerApp
+        @JvmStatic
+        fun cheatsManager(
+            sharedPreferences: Lazy<SharedPreferences>,
+            directoriesManager: DirectoriesManager,
+        ) = CheatsManager(sharedPreferences, directoriesManager)
+
+        @Provides
+        @PerApp
+        @JvmStatic
+        fun cheatDatabaseDownloader(
+            directoriesManager: DirectoriesManager,
+            okHttpClient: OkHttpClient,
+        ) = CheatDatabaseDownloader(directoriesManager, okHttpClient)
     }
 }
