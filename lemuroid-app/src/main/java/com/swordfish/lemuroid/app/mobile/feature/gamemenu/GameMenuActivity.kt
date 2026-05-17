@@ -42,12 +42,14 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.swordfish.lemuroid.R
+import com.swordfish.lemuroid.app.mobile.feature.gamemenu.cheats.CheatsScreen
 import com.swordfish.lemuroid.app.mobile.feature.gamemenu.coreoptions.GameMenuCoreOptionsScreen
 import com.swordfish.lemuroid.app.mobile.feature.gamemenu.coreoptions.GameMenuCoreOptionsViewModel
 import com.swordfish.lemuroid.app.mobile.feature.gamemenu.states.GameMenuStatesScreen
 import com.swordfish.lemuroid.app.mobile.feature.gamemenu.states.GameMenuStatesViewModel
 import com.swordfish.lemuroid.app.mobile.shared.compose.ui.AppTheme
 import com.swordfish.lemuroid.app.shared.GameMenuContract
+import com.swordfish.lemuroid.lib.cheats.CheatInfo
 import com.swordfish.lemuroid.app.shared.coreoptions.LemuroidCoreOption
 import com.swordfish.lemuroid.app.shared.input.InputDeviceManager
 import com.swordfish.lemuroid.common.kotlin.serializable
@@ -82,6 +84,7 @@ class GameMenuActivity : RetrogradeComponentActivity() {
         val currentDisk: Int,
         val currentTiltConfiguration: TiltConfiguration,
         val allTiltConfigurations: List<TiltConfiguration>,
+        val cheats: List<CheatInfo>,
     )
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -125,6 +128,10 @@ class GameMenuActivity : RetrogradeComponentActivity() {
                         ?: TiltConfiguration.Disabled,
                 allTiltConfigurations =
                     intent.serializable<Array<TiltConfiguration>>(GameMenuContract.EXTRA_TILT_ALL_CONFIGS)
+                        ?.toList()
+                        ?: emptyList(),
+                cheats =
+                    intent.serializable<Array<CheatInfo>>(GameMenuContract.EXTRA_CHEATS)
                         ?.toList()
                         ?: emptyList(),
             )
@@ -225,6 +232,9 @@ class GameMenuActivity : RetrogradeComponentActivity() {
                             ),
                             gameMenuRequest,
                         )
+                    }
+                    composable(GameMenuRoute.CHEATS) {
+                        CheatsScreen(gameMenuRequest)
                     }
                 }
             }
